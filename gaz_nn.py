@@ -21,7 +21,7 @@ def load_city_reach_model():
 
 def predict_city_reach():
     # Вводим расстояние до города через диалоговое окно
-    distance_to_city = simpledialog.askfloat("Введите расстояние", "Введите расстояние до города (км):", minvalue=0.1)
+    distance_to_city = simpledialog.askfloat("Введите расстояние", "Введите расстояние до города (м):", minvalue=0.1)
     
     if not distance_to_city:
         return
@@ -55,15 +55,21 @@ root.grid_columnconfigure(2, weight=1)
 
 # Данные по зонам
 zones_info = {
-    1: {"name": "Производственное помещение", "gas_volume": 0, "explosion_risk": "Высокая", "has_leakage": False, "max_leakage": 100},
+    1: {"name": "Производственная зона", "gas_volume": 0, "explosion_risk": "Высокая", "has_leakage": False, "max_leakage": 100},
     2: {"name": "Склад", "gas_volume": 0, "explosion_risk": "Средняя", "has_leakage": False, "max_leakage": 20},
     3: {"name": "Офис", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
     4: {"name": "Лаборатория", "gas_volume": 0, "explosion_risk": "Средняя", "has_leakage": False, "max_leakage": 20},
     5: {"name": "Котельная", "gas_volume": 0, "explosion_risk": "Высокая", "has_leakage": False, "max_leakage": 20},
     6: {"name": "Склад химикатов", "gas_volume": 0, "explosion_risk": "Высокая", "has_leakage": False, "max_leakage": 20},
-    7: {"name": "Бухгалтерия", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
-    8: {"name": "Гардероб", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
+    7: {"name": "Подземное помещение 1", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
+    8: {"name": "Подземное помещение 2", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
     9: {"name": "Техническое помещение", "gas_volume": 0, "explosion_risk": "Средняя", "has_leakage": False, "max_leakage": 20},
+}
+
+gases_info = {
+    "Хлор": {"pdv": 1},  # Пример ПДК для метана
+    "Аммиак": {"pdv": 20},  # Пример ПДК для пропана
+    "Угарный газ": {"pdv": 20},    # Пример ПДК для аммиака
 }
 
 # Список для отслеживания зон, в которых нужно распространять газ
@@ -108,38 +114,61 @@ def open_zone_settings(zone_number):
     zone_name = zones_info[zone_number]["name"]
     current_risk = zones_info[zone_number]["explosion_risk"]
     max_leakage = zones_info[zone_number]["max_leakage"]
+    current_staff_count = zones_info[zone_number].get("staff_count", 50)  # Добавим численность сотрудников
 
     # Создаем новое окно для настройки
     settings_window = tk.Toplevel(root)
     settings_window.title(f"Настройки зоны {zone_name}")
 
+    # Список для выбора нового названия зоны
+    available_names = ["Производственная зона", "Склад", "Офис", "Лаборатория", "Котельная", "Склад химикатов", "Подземное помещение 1", "Подземное помещение 2", "Техническое помещение"]
+    
+    tk.Label(settings_window, text="Выберите новое название зоны:").grid(row=0, column=0, padx=5, pady=5)
+    zone_name_dropdown = ttk.Combobox(settings_window, values=available_names, state="readonly")
+    zone_name_dropdown.set(zone_name)  # Устанавливаем текущее название
+    zone_name_dropdown.grid(row=0, column=1, padx=5, pady=5)
+
+    # Поле для численности сотрудников
+    tk.Label(settings_window, text="Численность сотрудников:").grid(row=1, column=0, padx=5, pady=5)
+    staff_count_entry = tk.Entry(settings_window)
+    staff_count_entry.insert(0, str(current_staff_count))  # Устанавливаем текущее количество сотрудников
+    staff_count_entry.grid(row=1, column=1, padx=5, pady=5)
+
     # Выпадающий список для риска взрыва
-    tk.Label(settings_window, text="Выберите риск взрыва:").grid(row=0, column=0, padx=5, pady=5)
+    tk.Label(settings_window, text="Выберите риск взрыва:").grid(row=2, column=0, padx=5, pady=5)
     explosion_risk_options = ["Высокая", "Средняя", "Низкая"]
     risk_dropdown = ttk.Combobox(settings_window, values=explosion_risk_options, state="readonly")
     risk_dropdown.set(current_risk)  # Устанавливаем текущий риск взрыва
-    risk_dropdown.grid(row=0, column=1, padx=5, pady=5)
+    risk_dropdown.grid(row=2, column=1, padx=5, pady=5)
 
     # Поле ввода для максимального объема утечки
-    tk.Label(settings_window, text="Максимальный объем утечки (м³):").grid(row=1, column=0, padx=5, pady=5)
+    tk.Label(settings_window, text="Максимальный объем утечки (м³):").grid(row=3, column=0, padx=5, pady=5)
     max_leakage_entry = tk.Entry(settings_window)
     max_leakage_entry.insert(0, str(max_leakage))  # Устанавливаем текущий максимальный объем
-    max_leakage_entry.grid(row=1, column=1, padx=5, pady=5)
+    max_leakage_entry.grid(row=3, column=1, padx=5, pady=5)
 
     # Кнопка для сохранения настроек
     def save_settings():
+        new_zone_name = zone_name_dropdown.get()
+        new_staff_count = int(staff_count_entry.get())
         selected_risk = risk_dropdown.get()
         new_max_leakage = float(max_leakage_entry.get())
         
         # Обновляем данные зоны
+        zones_info[zone_number]["name"] = new_zone_name
+        zones_info[zone_number]["staff_count"] = new_staff_count  # Сохраняем численность сотрудников
         zones_info[zone_number]["explosion_risk"] = selected_risk
         zones_info[zone_number]["max_leakage"] = new_max_leakage
         
-        messagebox.showinfo("Настройки сохранены", f"Настройки зоны {zone_name} обновлены.")
+        # Обновляем метку зоны в интерфейсе
+        zone = zone_frame.grid_slaves(row=(zone_number - 1) // 3, column=(zone_number - 1) % 3)[0]
+        zone.config(text=f"Зона {zone_number}\n{new_zone_name}")
+
+        messagebox.showinfo("Настройки сохранены", f"Настройки зоны {new_zone_name} обновлены.")
         settings_window.destroy()  # Закрыть окно настроек
 
     save_button = tk.Button(settings_window, text="Сохранить", command=save_settings)
-    save_button.grid(row=2, column=0, columnspan=2, pady=10)
+    save_button.grid(row=4, column=0, columnspan=2, pady=10)
 
 # Функция для открытия диалогового окна выбора зоны для утечки
 def select_zone_for_leak(zone_number):
@@ -149,11 +178,57 @@ def select_zone_for_leak(zone_number):
         messagebox.showerror("Ошибка", f"Невозможно начать утечку в зоне {zone_name}.")
         return
     
-    # Если зона подходящая, запрашиваем объем утечки
-    leak_volume = simpledialog.askfloat("Утечка газа", f"Введите объем утечки для зоны {zone_name} (макс {zones_info[zone_number]['max_leakage']} м³):", minvalue=1, maxvalue=zones_info[zone_number]["max_leakage"])
+    # Создаем окно для выбора газа и объема утечки
+    leak_window = Toplevel(root)
+    leak_window.title(f"Утечка газа в зоне {zone_name}")
+
+    # Создаем выпадающий список для выбора газа
+    gas_var = tk.StringVar()
+    gas_dropdown = ttk.Combobox(leak_window, textvariable=gas_var, values=list(gases_info.keys()), state="readonly")
+    gas_dropdown.set(list(gases_info.keys())[0])  # Устанавливаем по умолчанию первый газ
+    gas_dropdown.grid(row=0, column=0, padx=5, pady=5)
+
+    # Поле для ввода объема утечки
+    tk.Label(leak_window, text="Объем утечки (м³):").grid(row=1, column=0, padx=5, pady=5)
+    leak_volume_entry = tk.Entry(leak_window)
+    leak_volume_entry.grid(row=1, column=1, padx=5, pady=5)
+
+    # Показать ПДК выбранного газа
+    def update_pdv():
+        selected_gas = gas_var.get()
+        pdv = gases_info[selected_gas]["pdv"]
+        pdv_label.config(text=f"ПДК для {selected_gas}: {pdv} мг/м³")
     
-    if leak_volume:
-        start_leak(zone_number, leak_volume)
+    # Метка для отображения ПДК выбранного газа
+    pdv_label = tk.Label(leak_window, text="")
+    pdv_label.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+    # Обновление ПДК при изменении газа
+    gas_dropdown.bind("<<ComboboxSelected>>", lambda event: update_pdv())
+
+    # Кнопка для старта утечки
+    def start_leak_action():
+        leak_volume = float(leak_volume_entry.get())
+        selected_gas = gas_var.get()
+        pdv = gases_info[selected_gas]["pdv"]
+        
+        # Проверяем, что объем утечки в допустимых пределах
+        if leak_volume < 1 or leak_volume > zones_info[zone_number]["max_leakage"]:
+            messagebox.showerror("Ошибка", f"Объем утечки должен быть от 1 до {zones_info[zone_number]['max_leakage']} м³")
+            return
+
+        # Запуск утечки газа
+        start_leak(zone_number, leak_volume, selected_gas, pdv)
+        leak_window.destroy()
+
+    start_button = tk.Button(leak_window, text="Запустить утечку", command=start_leak_action)
+    start_button.grid(row=3, column=0, columnspan=2, pady=10)
+
+    # Закрыть окно без действий
+    close_button = tk.Button(leak_window, text="Закрыть", command=leak_window.destroy)
+    close_button.grid(row=4, column=0, columnspan=2, pady=5)
+
+    update_pdv()
        
 # Функция для открытия диалогового окна для мониторинга загазованности
 def open_gas_monitoring_window():
@@ -164,13 +239,61 @@ def open_gas_monitoring_window():
     log_text = tk.Text(monitoring_window, width=50, height=15)
     log_text.pack(padx=10, pady=10)
     
-    # Заполняем текстовый блок данными о загазованности
-    for zone_number, zone_data in zones_info.items():
-        log_text.insert(tk.END, f"Зона {zone_number}: {zone_data['name']} - Газ: {zone_data['gas_volume']:.2f} м³\n")
+    # Функция для обновления информации в текстовом окне
+    def update_log():
+        log_text.delete(1.0, tk.END)  # Очистим старые данные
+        
+        # Заполняем текстовое окно данными о загазованности
+        for zone_number, zone_data in zones_info.items():
+            air_volume = 10000  # Предполагаемый объем воздуха в помещении (100 м³)
+            gas_volume = zone_data["gas_volume"]
+            gas_type = zone_data.get("gas_type", "")
+            
+            # Устанавливаем ПДК для газа в каждой зоне
+            if gas_type == "Хлор":
+                pdv = 1  # ПДК для хлора
+            else:
+                pdv = 20  # ПДК для остальных газов (например, аммиак, угарный газ)
+            
+            # Если в зоне есть газ, рассчитываем концентрацию
+            if gas_volume > 0:
+                # Расчет концентрации в зависимости от типа газа
+                if gas_type == "Хлор":
+                    concentration = (gas_volume * 3.2 * 1000) / air_volume  # для хлора
+                elif gas_type == "Аммиак":
+                    concentration = (gas_volume * 0.73 * 1000) / air_volume  # для аммиака
+                elif gas_type == "Угарный газ":
+                    concentration = (gas_volume * 1.14 * 1000) / air_volume  # для угарного газа
+                else:
+                    concentration = 0  # Если газ не выбран, то концентрация равна 0
+            else:
+                # Если газа нет в зоне, то для этой зоны концентрация = 0, но нужно учитывать газ из соседних зон
+                concentration = 0  
+            
+            # Сравниваем концентрацию с ПДК
+            if concentration > pdv:
+                risk_status = "Перевышен ПДК!"
+            else:
+                risk_status = "Концентрация в пределах нормы"
+            
+            # Если концентрация очень мала, показываем 0
+            if concentration < 0.01:
+                concentration = 0
+            
+            # Отображаем концентрацию с точностью до 4 знаков
+            log_text.insert(tk.END, f"Зона {zone_number}: {zone_data['name']} - Газ: {gas_type}\n")
+            log_text.insert(tk.END, f"  Концентрация: {concentration:.4f} мг/м³ (ПДК: {pdv} мг/м³) - {risk_status}\n")
+    
+    # Кнопка для обновления мониторинга
+    update_button = tk.Button(monitoring_window, text="Обновить", command=update_log)
+    update_button.pack(pady=10)
     
     # Кнопка для закрытия окна мониторинга
     close_button = tk.Button(monitoring_window, text="Закрыть", command=monitoring_window.destroy)
     close_button.pack(pady=10)
+
+    # Изначально обновим данные в окне
+    update_log()
     
 # Прогнозируем вероятность взрыва
 def predict_explosion_risk(model, gas_volume, wind_speed, risk_level, zone):
@@ -193,10 +316,10 @@ def predict_explosion_risk(model, gas_volume, wind_speed, risk_level, zone):
         if current_risk == "Высокий":
             messagebox.showwarning("Экстренная мера", f"Зона {zones_info[zone]['name']}: Необходима эвакуация! Вероятность взрыва высока!")
             last_explosion_risk[zone]["notified"] = True
-        elif gas_volume >= 10:  # Уведомление для высокой загазованности
+        elif gas_volume >= 7:  # Уведомление для высокой загазованности
             messagebox.showwarning("Экстренная мера", f"Зона {zones_info[zone]['name']}: Необходима эвакуация! Высокая загазованность помещения!")
             last_explosion_risk[zone]["notified"] = True
-        elif gas_volume < 10:
+        elif gas_volume < 6:
         # Если газ в зоне меньше 10 м³, сбрасываем флаг, чтобы сообщение не выводилось снова
             last_explosion_risk[zone]["notified"] = False
 
@@ -206,11 +329,17 @@ def emergency_call():
 
 # Функция для старта утечки газа
 # Функция для старта утечки газа
-def start_leak(zone_number, leak_volume):
-    # Установим начальный объем газа для этой зоны
+def start_leak(zone_number, leak_volume, selected_gas, pdv):
+    # Устанавливаем начальный объем газа для этой зоны и тип газа
     zones_info[zone_number]["has_leakage"] = True
     zones_info[zone_number]["gas_volume"] = leak_volume
+    zones_info[zone_number]["gas_type"] = selected_gas  # Тип газа
+    zones_info[zone_number]["pdv"] = pdv  # ПДК выбранного газа
     zones_info[zone_number]["initial_volume"] = leak_volume
+
+    # Обновляем тип газа для всех зон
+    for zone_num in zones_info:
+        zones_info[zone_num]["gas_type"] = selected_gas
 
     # Прогнозируем риск взрыва и необходимость эвакуации
     gas_volume = zones_info[zone_number]["gas_volume"]
@@ -322,7 +451,7 @@ def interpolate_color(start_color, end_color, factor):
     new_rgb = [int(start_rgb[i] + factor * (end_rgb[i] - start_rgb[i])) for i in range(3)]
     return '#{:02x}{:02x}{:02x}'.format(new_rgb[0], new_rgb[1], new_rgb[2])
 
-# Функция для обновления цветов зон в зависимости от объема газа
+# Функция для обновления цветов зон в зависимости от объема газа и концентрации газа
 def update_zone_colors():
     for i in range(3):
         for j in range(3):
@@ -330,13 +459,29 @@ def update_zone_colors():
             zone = zone_frame.grid_slaves(row=i, column=j)[0]
             zone_data = zones_info[zone_number]
 
-            # Определяем конечный цвет в зависимости от объема газа
-            if zone_data['gas_volume'] < 10:
-                end_color = "00ff00"  # Зеленый
-            elif zone_data['gas_volume'] < 25:
-                end_color = "ffff00"  # Желтый
+            # Получаем тип газа для этой зоны
+            gas_type = zone_data.get("gas_type", "")
+            gas_volume = zone_data["gas_volume"]
+            
+            # Если газа нет в зоне, зона будет зеленой
+            if gas_volume == 0:
+                end_color = "00ff00"  # Зеленый, если газа нет
+            elif gas_type == "Хлор":
+                # Для хлора: ПДК = 1 мг/м³, и условие: если меньше 1, то желтый, иначе красный
+                if gas_volume < 1:
+                    end_color = "00ff00"  #Зеленый
+                elif gas_volume < 8:
+                    end_color = "ffff00"    #Желтый
+                else:
+                    end_color = "ff0000"  # Красный
             else:
-                end_color = "ff0000"  # Красный
+                # Для других газов: ПДК = 20 мг/м³
+                if gas_volume < 20:
+                    end_color = "00ff00"  # Зеленый
+                elif gas_volume < 50:
+                    end_color = "ffff00"  # Желтый
+                else:
+                    end_color = "ff0000"  # Красный
 
             # Начальный цвет — белый
             start_color = "ffffff"
