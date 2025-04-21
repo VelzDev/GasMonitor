@@ -86,7 +86,7 @@ background_image = background_image.resize((600, 600), Image.Resampling.LANCZOS)
 background_photo = ImageTk.PhotoImage(background_image)
 
 # Канвас с фоном
-canvas = tk.Canvas(root, width=1000, height=600)
+canvas = tk.Canvas(root, width=1000, height=1000)
 canvas.grid(row=1, column=0, columnspan=3, rowspan=2)  # расширяем на два ряда
 canvas.create_image(0, 0, anchor=tk.NW, image=background_photo)
 
@@ -100,17 +100,29 @@ input_frame.grid(row=2, column=0, columnspan=3, pady=10, padx=70)
 
 last_explosion_risk = {}
 # Создание формы для ввода направления и силы ветра
-wind_frame = tk.Frame(canvas, bg="#f0f0f0")
+wind_frame = tk.Frame(root, bg="#f0f0f0")
+wind_frame.grid(row=2, column=0, columnspan=3, pady=10)
 
-canvas.create_window(70, 230, anchor="nw", window=wind_frame)
+canvas.create_window(70, 292, anchor="nw", window=wind_frame)
 
-wind_label = tk.Label(wind_frame, text="Направление ветра: Восток", bg="#f0f0f0")
+# Направление ветра
+from tkinter import ttk
 
-wind_label.pack(side="left", padx=5)
+# Направление ветра (выпадающий список)
+tk.Label(wind_frame, text="Направление ветра:", bg="#f0f0f0").pack(side="left", padx=5)
 
-wind_speed_label = tk.Label(wind_frame, text="Сила ветра: 3 м/с", bg="#f0f0f0")
+wind_direction_var = tk.StringVar()
+wind_direction_combobox = ttk.Combobox(wind_frame, textvariable=wind_direction_var, state="readonly")
+wind_direction_combobox['values'] = ["Север", "Юг", "Запад", "Восток"]
+wind_direction_combobox.set("Восток")  # Стандартное значение
+wind_direction_combobox.pack(side="left", padx=5)
 
-wind_speed_label.pack(side="left", padx=5)
+# Сила ветра (ввод)
+tk.Label(wind_frame, text="Сила ветра (м/с):", bg="#f0f0f0").pack(side="left", padx=5)
+
+wind_speed_entry = tk.Entry(wind_frame, width=5)
+wind_speed_entry.insert(0, "3")
+wind_speed_entry.pack(side="left", padx=5)
 
 # Функция для создания сетки с зонами
 def create_grid():
