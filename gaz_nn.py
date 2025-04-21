@@ -8,6 +8,7 @@ import joblib
 import numpy as np
 import random
 from collections import deque
+from PIL import Image, ImageTk
 
 def load_model():
     print('загружена модель нейросети загазованности помещений');
@@ -61,7 +62,7 @@ zones_info = {
     4: {"name": "Лаборатория", "gas_volume": 0, "explosion_risk": "Средняя", "has_leakage": False, "max_leakage": 20},
     5: {"name": "Котельная", "gas_volume": 0, "explosion_risk": "Высокая", "has_leakage": False, "max_leakage": 20},
     6: {"name": "Склад химикатов", "gas_volume": 0, "explosion_risk": "Высокая", "has_leakage": False, "max_leakage": 20},
-    7: {"name": "Подземное помещение 1", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
+    7: {"name": "Трансформаторная подстанция", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
     8: {"name": "Подземное помещение 2", "gas_volume": 0, "explosion_risk": "Низкая", "has_leakage": False, "max_leakage": 0},
     9: {"name": "Техническое помещение", "gas_volume": 0, "explosion_risk": "Средняя", "has_leakage": False, "max_leakage": 20},
 }
@@ -79,25 +80,37 @@ spread_queue = deque()
 wind_direction = tk.StringVar(value="Восток")
 wind_speed = tk.DoubleVar(value=1.0)
 
+# Загрузка изображения фона
+background_image = Image.open("background.png")  # сюда путь к твоей картинке
+background_image = background_image.resize((600, 600), Image.Resampling.LANCZOS)
+background_photo = ImageTk.PhotoImage(background_image)
+
+# Канвас с фоном
+canvas = tk.Canvas(root, width=1000, height=600)
+canvas.grid(row=1, column=0, columnspan=3, rowspan=2)  # расширяем на два ряда
+canvas.create_image(0, 0, anchor=tk.NW, image=background_photo)
+
 # Создание фреймов для зон и формы ввода
-zone_frame = tk.Frame(root)
-zone_frame.grid(row=1, column=0, columnspan=3, pady=10)
+zone_frame = tk.Frame(canvas, bg="", bd=0)
+zone_window = canvas.create_window(0, 0, anchor="nw", window=zone_frame)
+zone_frame.grid(row=1, column=0, columnspan=3, pady=10, padx=70)
 
 input_frame = tk.Frame(root)  # Определение input_frame перед его использованием
-input_frame.grid(row=2, column=0, columnspan=3, pady=10)
+input_frame.grid(row=2, column=0, columnspan=3, pady=10, padx=70)
 
 last_explosion_risk = {}
 # Создание формы для ввода направления и силы ветра
-def create_wind_input():
-    tk.Label(input_frame, text="Направление ветра:").grid(row=0, column=0, padx=5, pady=5)
-    wind_direction_dropdown = tk.OptionMenu(input_frame, wind_direction, "Север", "Юг", "Восток", "Запад")
-    wind_direction_dropdown.grid(row=0, column=1, padx=5, pady=5)
+wind_frame = tk.Frame(canvas, bg="#f0f0f0")
 
-    tk.Label(input_frame, text="Сила ветра (м/с):").grid(row=1, column=0, padx=5, pady=5)
-    wind_speed_entry = tk.Entry(input_frame, textvariable=wind_speed)
-    wind_speed_entry.grid(row=1, column=1, padx=5, pady=5)
+canvas.create_window(70, 230, anchor="nw", window=wind_frame)
 
-create_wind_input()
+wind_label = tk.Label(wind_frame, text="Направление ветра: Восток", bg="#f0f0f0")
+
+wind_label.pack(side="left", padx=5)
+
+wind_speed_label = tk.Label(wind_frame, text="Сила ветра: 3 м/с", bg="#f0f0f0")
+
+wind_speed_label.pack(side="left", padx=5)
 
 # Функция для создания сетки с зонами
 def create_grid():
